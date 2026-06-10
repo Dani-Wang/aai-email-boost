@@ -1,6 +1,22 @@
-import { GoogleGenAI } from "@google/genai"
-
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+// OpenRouter — free tier with Llama 3.3 70B
+async function openRouterChat(prompt: string, maxTokens = 4000): Promise<string> {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://aai-email-boost.vercel.app",
+    },
+    body: JSON.stringify({
+      model: "meta-llama/llama-3.3-70b-instruct:free",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: maxTokens,
+    }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error?.message ?? "OpenRouter error")
+  return data.choices?.[0]?.message?.content ?? ""
+}
 
 export interface PreDraftAnswers {
   primaryGoal: string        // e.g. "Get a reply", "Request a meeting"
@@ -249,22 +265,8 @@ Return your response as a JSON object with this exact structure:
 }
 `
 
-  const model = genai.models
-  const response = await model.generateContent({
-    model: "gemini-2.0-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: {
-      maxOutputTokens: 4000,
-      tools: [{ googleSearch: {} }],
-    },
-  })
-
-  const text = response.candidates?.[0]?.content?.parts
-    ?.filter((p: any) => p.text)
-    .map((p: any) => p.text)
-    .join("") ?? ""
-
+  const text = await openRouterChat(prompt, 4000)
   const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error("Claude did not return valid JSON")
+  if (!jsonMatch) throw new Error("No valid JSON in response")
   return JSON.parse(jsonMatch[0])
 }

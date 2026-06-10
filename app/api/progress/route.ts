@@ -1,7 +1,23 @@
-import { GoogleGenAI } from "@google/genai"
 import { NextRequest, NextResponse } from "next/server"
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+async function openRouterChat(prompt: string): Promise<string> {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://aai-email-boost.vercel.app",
+    },
+    body: JSON.stringify({
+      model: "meta-llama/llama-3.1-8b-instruct:free",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1000,
+    }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error?.message ?? "OpenRouter error")
+  return data.choices?.[0]?.message?.content ?? ""
+}
 
 export async function GET(req: NextRequest) {
   const company = req.nextUrl.searchParams.get("company")
@@ -35,13 +51,7 @@ Return a JSON object with this structure:
 If no cage-free progress data can be found, return { "noDataFound": true, "progressLines": [], "reportingYear": null, "sourceNote": null, "sourceUrl": null }.
 Only include explicitly stated data. Do not estimate or infer.`
 
-    const response = await genai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { maxOutputTokens: 1000, tools: [{ googleSearch: {} }] },
-    })
-    const text = response.candidates?.[0]?.content?.parts
-      ?.filter((p: any) => p.text).map((p: any) => p.text).join("") ?? ""
+    const text = await openRouterChat(prompt)
 
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) return NextResponse.json({ noDataFound: true, progressLines: [], sourceNote: null, sourceUrl: null })

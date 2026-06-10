@@ -1,16 +1,22 @@
-import { GoogleGenAI } from "@google/genai"
 import { NextRequest, NextResponse } from "next/server"
 
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
-
-async function geminiSearch(prompt: string, maxTokens = 600) {
-  const response = await genai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { maxOutputTokens: maxTokens, tools: [{ googleSearch: {} }] },
+async function openRouterChat(prompt: string): Promise<string> {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://aai-email-boost.vercel.app",
+    },
+    body: JSON.stringify({
+      model: "meta-llama/llama-3.1-8b-instruct:free",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 600,
+    }),
   })
-  return response.candidates?.[0]?.content?.parts
-    ?.filter((p: any) => p.text).map((p: any) => p.text).join("") ?? ""
+  const data = await res.json()
+  if (!res.ok) return ""
+  return data.choices?.[0]?.message?.content ?? ""
 }
 
 export async function GET(req: NextRequest) {
@@ -25,7 +31,7 @@ export async function GET(req: NextRequest) {
   const [companyNews, contactIntel] = await Promise.allSettled([
 
     // 1. Company sustainability / cage-free news
-    geminiSearch(`Search for recent news (2024 or 2025) about "${company}" related to sustainability, cage-free eggs, animal welfare, ESG, or supply chain commitments. Return a JSON object:
+    openRouterChat(`Search your knowledge for recent news (2024 or 2025) about "${company}" related to sustainability, cage-free eggs, animal welfare, ESG, or supply chain commitments. Return a JSON object:
 {
   "items": [
     { "headline": "...", "summary": "one sentence", "date": "approximate date or year", "url": "source URL or null" }
@@ -34,7 +40,7 @@ export async function GET(req: NextRequest) {
 Maximum 3 items. Only include genuinely relevant items. If nothing found, return { "items": [] }.`),
 
     // 2. Contact LinkedIn / recent activity
-    contactName ? geminiSearch(`Search for recent public activity from ${contactName}${contactTitle ? `, ${contactTitle}` : ""} at ${company}. ${linkedinUrl ? `Their LinkedIn: ${linkedinUrl}` : ""}
+    contactName ? openRouterChat(`Search your knowledge for recent public activity from ${contactName}${contactTitle ? `, ${contactTitle}` : ""} at ${company}. ${linkedinUrl ? `Their LinkedIn: ${linkedinUrl}` : ""}
 Look for: recent LinkedIn posts, job changes, public statements, conference talks, interviews, or any mentions related to sustainability, supply chain, or animal welfare.
 Return a JSON object:
 {
