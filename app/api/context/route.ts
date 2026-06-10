@@ -1,6 +1,15 @@
-import { hubspot } from "@/lib/hubspot"
 import { getCompanyFromAirtable, REGION_TO_OUTREACH_COLUMN, PRIORITY_TAGS } from "@/lib/airtable"
 import { NextRequest, NextResponse } from "next/server"
+
+async function hubspotPost(path: string, body: any) {
+  const res = await fetch(`https://api.hubapi.com${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.HUBSPOT_ACCESS_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`HubSpot ${path} error: ${res.status}`)
+  return res.json()
+}
 
 async function fetchEngagements(entityType: "deal" | "contact", entityId: string): Promise<any[]> {
   const res = await fetch(
@@ -18,19 +27,17 @@ export async function POST(req: NextRequest) {
   try {
     const [airtableRecord, dealsResponse] = await Promise.all([
       getCompanyFromAirtable(company),
-      hubspot.crm.deals.searchApi.doSearch({
-        filterGroups: [
-          { filters: [{ propertyName: "dealname", operator: "CONTAINS_TOKEN" as any, value: company }] },
-        ],
+      hubspotPost("/crm/v3/objects/deals/search", {
+        filterGroups: [{ filters: [{ propertyName: "dealname", operator: "CONTAINS_TOKEN", value: company }] }],
         properties: ["dealname", "dealstage", "hs_lastmodifieddate"],
         limit: 10,
       }),
     ])
 
-    const chinaDeal = dealsResponse.results.find(
+    const chinaDeal = (dealsResponse.results ?? []).find(
       (d: any) => d.properties.dealname.toLowerCase().includes("china")
     ) ?? null
-    const otherDeals = dealsResponse.results.filter(
+    const otherDeals = (dealsResponse.results ?? []).filter(
       (d: any) => !d.properties.dealname.toLowerCase().includes("china")
     )
 
@@ -39,14 +46,12 @@ export async function POST(req: NextRequest) {
     let allEngagements: any[] = []
     if (contactEmail) {
       try {
-        const contactSearch = await hubspot.crm.contacts.searchApi.doSearch({
-          filterGroups: [
-            { filters: [{ propertyName: "email", operator: "EQ" as any, value: contactEmail }] },
-          ],
+        const contactSearch = await hubspotPost("/crm/v3/objects/contacts/search", {
+          filterGroups: [{ filters: [{ propertyName: "email", operator: "EQ", value: contactEmail }] }],
           properties: ["firstname", "lastname", "email"],
           limit: 1,
         })
-        if (contactSearch.results.length > 0) {
+        if ((contactSearch.results ?? []).length > 0) {
           const contactId = contactSearch.results[0].id
           allEngagements = await fetchEngagements("contact", contactId).catch(() => [])
         }

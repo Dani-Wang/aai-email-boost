@@ -1,4 +1,3 @@
-import { hubspot } from "@/lib/hubspot"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(req: NextRequest) {
@@ -6,19 +5,32 @@ export async function GET(req: NextRequest) {
   if (!query || query.length < 2) return NextResponse.json({ contacts: [] })
 
   try {
-    // Search contacts only — deals search removed to keep this fast
-    const contactsRes = await hubspot.crm.contacts.searchApi.doSearch({
-      filterGroups: [
-        { filters: [{ propertyName: "firstname", operator: "CONTAINS_TOKEN" as any, value: query }] },
-        { filters: [{ propertyName: "lastname", operator: "CONTAINS_TOKEN" as any, value: query }] },
-        { filters: [{ propertyName: "email", operator: "CONTAINS_TOKEN" as any, value: query }] },
-        { filters: [{ propertyName: "company", operator: "CONTAINS_TOKEN" as any, value: query }] },
-      ],
-      properties: ["firstname", "lastname", "email", "jobtitle", "company"],
-      limit: 8,
+    // Use direct HubSpot REST API — avoids SDK compatibility issues
+    const res = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/search", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.HUBSPOT_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        filterGroups: [
+          { filters: [{ propertyName: "firstname", operator: "CONTAINS_TOKEN", value: query }] },
+          { filters: [{ propertyName: "lastname", operator: "CONTAINS_TOKEN", value: query }] },
+          { filters: [{ propertyName: "email", operator: "CONTAINS_TOKEN", value: query }] },
+          { filters: [{ propertyName: "company", operator: "CONTAINS_TOKEN", value: query }] },
+        ],
+        properties: ["firstname", "lastname", "email", "jobtitle", "company"],
+        limit: 8,
+      }),
     })
 
-    const contacts = contactsRes.results.map((c: any) => ({
+    if (!res.ok) {
+      const err = await res.text()
+      return NextResponse.json({ error: err }, { status: 500 })
+    }
+
+    const data = await res.json()
+    const contacts = (data.results || []).map((c: any) => ({
       type: "contact",
       id: c.id,
       name: `${c.properties.firstname ?? ""} ${c.properties.lastname ?? ""}`.trim(),
