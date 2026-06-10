@@ -164,8 +164,11 @@ export default function DraftPage() {
   async function fetchProgress(company: string, reportLink: string) {
     setProgressLoading(true)
     try {
+      // Only pass reportLink if it's a clean http/https URL — skip PDFs and malformed links
+      const cleanLink = reportLink && reportLink.startsWith("http") && !reportLink.includes(".pdf")
+        ? reportLink : ""
       const params = new URLSearchParams({ company })
-      if (reportLink) params.set("reportLink", reportLink)
+      if (cleanLink) params.set("reportLink", cleanLink)
       const res = await fetch(`/api/progress?${params}`)
       const data = await res.json()
       if (!data.error) setProgress(data)
