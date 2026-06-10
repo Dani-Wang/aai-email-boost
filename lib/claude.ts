@@ -8,7 +8,7 @@ async function openRouterChat(prompt: string, maxTokens = 4000): Promise<string>
       "HTTP-Referer": "https://aai-email-boost.vercel.app",
     },
     body: JSON.stringify({
-      model: "mistralai/mistral-7b-instruct:free",
+      model: "google/gemma-4-31b-it:free",
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens,
     }),
