@@ -9,7 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.102.0",
+    "@auth/core": "^0.34.3",
+    "@azure/identity": "^4.13.1",
+    "@hubspot/api-client": "^13.5.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@supabase/supabase-js": "^2.108.0",
+    "airtable": "^0.12.2",
+    "isomorphic-fetch": "^3.0.0",
     "next": "16.2.7",
+    "next-auth": "^4.24.14",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
