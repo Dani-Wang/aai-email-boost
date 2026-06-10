@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.102.0",
     "@auth/core": "^0.34.3",
     "@azure/identity": "^4.13.1",
+    "@google/genai": "^2.8.0",
     "@hubspot/api-client": "^13.5.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@supabase/supabase-js": "^2.108.0",

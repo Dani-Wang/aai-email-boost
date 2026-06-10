@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk"
+import { GoogleGenAI } from "@google/genai"
 import { NextRequest, NextResponse } from "next/server"
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
 export async function GET(req: NextRequest) {
   const company = req.nextUrl.searchParams.get("company")
@@ -35,17 +35,13 @@ Return a JSON object with this structure:
 If no cage-free progress data can be found, return { "noDataFound": true, "progressLines": [], "reportingYear": null, "sourceNote": null, "sourceUrl": null }.
 Only include explicitly stated data. Do not estimate or infer.`
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 } as any],
-      messages: [{ role: "user", content: prompt }],
+    const response = await genai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { maxOutputTokens: 1000, tools: [{ googleSearch: {} }] },
     })
-
-    const text = response.content
-      .filter((b: any) => b.type === "text")
-      .map((b: any) => b.text)
-      .join("")
+    const text = response.candidates?.[0]?.content?.parts
+      ?.filter((p: any) => p.text).map((p: any) => p.text).join("") ?? ""
 
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) return NextResponse.json({ noDataFound: true, progressLines: [], sourceNote: null, sourceUrl: null })

@@ -1,6 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk"
+import { GoogleGenAI } from "@google/genai"
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
 export interface PreDraftAnswers {
   primaryGoal: string        // e.g. "Get a reply", "Request a meeting"
@@ -249,24 +249,20 @@ Return your response as a JSON object with this exact structure:
 }
 `
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 4000,
-    tools: [
-      {
-        type: "web_search_20250305",
-        name: "web_search",
-        max_uses: 2,
-      } as any,
-    ],
-    messages: [{ role: "user", content: prompt }],
+  const model = genai.models
+  const response = await model.generateContent({
+    model: "gemini-2.0-flash",
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: {
+      maxOutputTokens: 4000,
+      tools: [{ googleSearch: {} }],
+    },
   })
 
-  // Extract final text block (after any web search tool use)
-  const text = response.content
-    .filter((b: any) => b.type === "text")
-    .map((b: any) => b.text)
-    .join("")
+  const text = response.candidates?.[0]?.content?.parts
+    ?.filter((p: any) => p.text)
+    .map((p: any) => p.text)
+    .join("") ?? ""
 
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error("Claude did not return valid JSON")
