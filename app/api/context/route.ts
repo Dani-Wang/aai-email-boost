@@ -1,4 +1,4 @@
-import { getCompanyFromAirtable, REGION_TO_OUTREACH_COLUMN, PRIORITY_TAGS } from "@/lib/airtable"
+import { getCompanyFromAirtable, REGION_TO_PRIORITY_COLUMN, REGION_TO_STATUS_COLUMN, PRIORITY_TAGS } from "@/lib/airtable"
 import { NextRequest, NextResponse } from "next/server"
 
 async function hubspotPost(path: string, body: any) {
@@ -102,29 +102,36 @@ export async function POST(req: NextRequest) {
     const latestReportLink = f["Report Link 2026"] || f["Report Link 2025"] || f["Report Link 2024"] || f["Report Link 2023"] || null
     const latestReportYear = f["Report Link 2026"] ? "2026" : f["Report Link 2025"] ? "2025" : f["Report Link 2024"] ? "2024" : f["Report Link 2023"] ? "2023" : null
 
-    // Determine the country for Airtable outreach column lookup.
-    // Priority: (1) region from HubSpot contact field, (2) country extracted from deal name
+    // Determine the country for Airtable lookup
+    // Priority: (1) direct region match, (2) country from deal name
     const COUNTRIES = ["China", "Thailand", "Indonesia", "Vietnam", "Malaysia", "Philippines", "Hong Kong"]
     const countryFromDeal = dealName
       ? COUNTRIES.find(c => dealName.toLowerCase().includes(c.toLowerCase())) ?? null
       : null
-    const lookupCountry = (region && REGION_TO_OUTREACH_COLUMN[region]) ? region : (countryFromDeal ?? region)
-    const outreachColumnName = lookupCountry ? REGION_TO_OUTREACH_COLUMN[lookupCountry] ?? null : null
-    const outreachValues: string[] = outreachColumnName
-      ? (f[outreachColumnName] ?? []).map((v: any) => typeof v === "object" ? v.name?.trim() : String(v).trim())
-      : []
-    const countryPriority = outreachValues.find(v => PRIORITY_TAGS.includes(v)) ?? null
+    const lookupCountry = (region && REGION_TO_PRIORITY_COLUMN[region])
+      ? region
+      : (countryFromDeal ?? region ?? "")
 
-    // The outreach column also stores the engagement status tag — use this as the authoritative source
-    // Airtable may store e.g. "Active (Emails, calls)" — match by startsWith for robustness
+    // Priority: read from the priority column for this country
+    const priorityColumnName = lookupCountry ? REGION_TO_PRIORITY_COLUMN[lookupCountry] ?? null : null
+    const priorityValues: string[] = priorityColumnName
+      ? (f[priorityColumnName] ?? []).map((v: any) => typeof v === "object" ? v.name?.trim() : String(v).trim())
+      : []
+    const countryPriority = priorityValues.find(v => PRIORITY_TAGS.includes(v)) ?? null
+
+    // Engagement status: China uses its own separate "China Outreach Status" field
+    // Other countries: status is in the same combined outreach column
     const ENGAGEMENT_STATUS_TAGS = [
       "Active", "Early stage emails", "Research stage",
       "Escalation", "Reactive but silent", "Not reactive/ignoring",
     ]
-    const rawEngagementValue = outreachValues.find(v =>
+    const statusColumnName = lookupCountry ? REGION_TO_STATUS_COLUMN[lookupCountry] ?? null : null
+    const statusValues: string[] = statusColumnName
+      ? (f[statusColumnName] ?? []).map((v: any) => typeof v === "object" ? v.name?.trim() : String(v).trim())
+      : []
+    const rawEngagementValue = statusValues.find(v =>
       ENGAGEMENT_STATUS_TAGS.some(tag => v.toLowerCase().startsWith(tag.toLowerCase()))
     ) ?? null
-    // Normalise to the standard tag name (strip any suffix like "(Emails, calls)")
     const countryEngagementStatus = rawEngagementValue
       ? ENGAGEMENT_STATUS_TAGS.find(tag =>
           rawEngagementValue.toLowerCase().startsWith(tag.toLowerCase())

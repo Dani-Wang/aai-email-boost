@@ -2,18 +2,34 @@ const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY!
 const BASE_ID = process.env.AIRTABLE_BASE_ID!
 const MASTER_LIST_TABLE = "tblyPzFqgSnAIT9E9"
 
-// Map region names to Airtable outreach column names
-export const REGION_TO_OUTREACH_COLUMN: Record<string, string> = {
-  "China":       "China Outreach",
+// China now has TWO separate fields: Priority + Outreach Status
+// Other countries still use one combined field
+export const REGION_TO_PRIORITY_COLUMN: Record<string, string> = {
+  "China":       "China Priority",
+  "Hong Kong":   "China Priority",
   "Thailand":    "Thailand Outreach",
   "Indonesia":   "Indonesia Outreach",
   "Philippines": "Philippines Outreach",
   "Malaysia":    "Malaysia Outreach",
   "Vietnam":     "Vietnam Outreach",
-  "Hong Kong":   "China Outreach", // HK uses China column
 }
 
-// Priority tag values as they appear in Airtable outreach columns
+// China-specific engagement status field (separate from priority)
+export const REGION_TO_STATUS_COLUMN: Record<string, string> = {
+  "China":     "China Outreach Status",
+  "Hong Kong": "China Outreach Status",
+  // Other countries: status is in the same combined column as priority
+  "Thailand":    "Thailand Outreach",
+  "Indonesia":   "Indonesia Outreach",
+  "Philippines": "Philippines Outreach",
+  "Malaysia":    "Malaysia Outreach",
+  "Vietnam":     "Vietnam Outreach",
+}
+
+// Keep for backward compat
+export const REGION_TO_OUTREACH_COLUMN = REGION_TO_PRIORITY_COLUMN
+
+// Priority tag values
 export const PRIORITY_TAGS = ["High", "Medium", "Low", "Campaign", "No Outreach", "N.A"]
 
 export const PRIORITY_TAG_COLORS: Record<string, string> = {
@@ -46,8 +62,6 @@ export async function getCompanyFromAirtable(companyName: string) {
     "Global CF Pct",
     "CF Pct Asia or APAC 2025",
     "CF Pct China 2025 (If not included in Asia)",
-    // Country-specific CF% from Research Staging linked data — may not exist on all records
-    "CF Pct China 2025 (If not included in Asia)",
     "Reporting Status",
     "Policy Coverage",
     "Commitment Link",
@@ -55,8 +69,10 @@ export async function getCompanyFromAirtable(companyName: string) {
     "Report Link 2024",
     "Report Link 2025",
     "Report Link 2026",
-    // All country outreach columns
-    "China Outreach",
+    // China: now split into two separate fields
+    "China Priority",
+    "China Outreach Status",
+    // Other countries: still one combined field
     "Thailand Outreach",
     "Indonesia Outreach",
     "Philippines Outreach",
