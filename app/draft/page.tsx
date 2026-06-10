@@ -193,7 +193,7 @@ export default function DraftPage() {
       const res = await fetch("/api/context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company: c.company, contactEmail: c.email, dealId: c.dealId ?? null, region: c.region ?? null }),
+        body: JSON.stringify({ company: c.company, contactEmail: c.email, dealId: c.dealId ?? null, region: c.region ?? null, dealName: c.dealName ?? null }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)

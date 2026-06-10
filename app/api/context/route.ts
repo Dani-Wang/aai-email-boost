@@ -22,7 +22,7 @@ async function fetchEngagements(entityType: "deal" | "contact", entityId: string
 }
 
 export async function POST(req: NextRequest) {
-  const { company, contactEmail, dealId, region } = await req.json()
+  const { company, contactEmail, dealId, region, dealName } = await req.json()
 
   try {
     const [airtableRecord, dealsResponse] = await Promise.all([
@@ -102,8 +102,14 @@ export async function POST(req: NextRequest) {
     const latestReportLink = f["Report Link 2026"] || f["Report Link 2025"] || f["Report Link 2024"] || f["Report Link 2023"] || null
     const latestReportYear = f["Report Link 2026"] ? "2026" : f["Report Link 2025"] ? "2025" : f["Report Link 2024"] ? "2024" : f["Report Link 2023"] ? "2023" : null
 
-    // Extract country-specific priority from the correct outreach column
-    const outreachColumnName = region ? REGION_TO_OUTREACH_COLUMN[region] ?? null : null
+    // Determine the country for Airtable outreach column lookup.
+    // Priority: (1) region from HubSpot contact field, (2) country extracted from deal name
+    const COUNTRIES = ["China", "Thailand", "Indonesia", "Vietnam", "Malaysia", "Philippines", "Hong Kong"]
+    const countryFromDeal = dealName
+      ? COUNTRIES.find(c => dealName.toLowerCase().includes(c.toLowerCase())) ?? null
+      : null
+    const lookupCountry = (region && REGION_TO_OUTREACH_COLUMN[region]) ? region : (countryFromDeal ?? region)
+    const outreachColumnName = lookupCountry ? REGION_TO_OUTREACH_COLUMN[lookupCountry] ?? null : null
     const outreachValues: string[] = outreachColumnName
       ? (f[outreachColumnName] ?? []).map((v: any) => typeof v === "object" ? v.name?.trim() : String(v).trim())
       : []
