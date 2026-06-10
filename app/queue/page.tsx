@@ -68,7 +68,15 @@ export default function QueuePage() {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
         const data = await res.json()
-        setResults(data)
+        if (data.error) {
+          setResults({ contacts: [] })
+          console.error("Search error:", data.error)
+        } else {
+          setResults(data)
+        }
+      } catch (err) {
+        console.error("Search fetch failed:", err)
+        setResults({ contacts: [] })
       } finally {
         setSearching(false)
       }
