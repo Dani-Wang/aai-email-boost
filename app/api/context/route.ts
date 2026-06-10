@@ -110,13 +110,20 @@ export async function POST(req: NextRequest) {
     const countryPriority = outreachValues.find(v => PRIORITY_TAGS.includes(v)) ?? null
 
     // The outreach column also stores the engagement status tag — use this as the authoritative source
+    // Airtable may store e.g. "Active (Emails, calls)" — match by startsWith for robustness
     const ENGAGEMENT_STATUS_TAGS = [
       "Active", "Early stage emails", "Research stage",
       "Escalation", "Reactive but silent", "Not reactive/ignoring",
     ]
-    const countryEngagementStatus = outreachValues.find(v =>
-      ENGAGEMENT_STATUS_TAGS.some(tag => v.toLowerCase() === tag.toLowerCase())
+    const rawEngagementValue = outreachValues.find(v =>
+      ENGAGEMENT_STATUS_TAGS.some(tag => v.toLowerCase().startsWith(tag.toLowerCase()))
     ) ?? null
+    // Normalise to the standard tag name (strip any suffix like "(Emails, calls)")
+    const countryEngagementStatus = rawEngagementValue
+      ? ENGAGEMENT_STATUS_TAGS.find(tag =>
+          rawEngagementValue.toLowerCase().startsWith(tag.toLowerCase())
+        ) ?? null
+      : null
 
     // Country-level CF% — only for the matching deal country
     const COUNTRY_CF_FIELDS: Record<string, string> = {
